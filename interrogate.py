@@ -16,23 +16,19 @@ load_model_hf = tf.keras.models.load_model
 from tqdm import tqdm
 gpus = tf.config.list_physical_devices('GPU')
 if gpus:
-  # Create 2 virtual GPUs with 1GB memory each
-  try:
-    tf.config.set_logical_device_configuration(
-        gpus[0],
-        [tf.config.LogicalDeviceConfiguration(memory_limit=20480),]) # adjust by yourself
-    logical_gpus = tf.config.list_logical_devices('GPU')
-    print(len(gpus), "Physical GPU,", len(logical_gpus), "Logical GPUs")
-  except RuntimeError as e:
-    # Virtual devices must be set before GPUs have been initialized
-    print(e)
+  # set memory growth
+    try:
+        for gpu in gpus:
+            tf.config.experimental.set_memory_growth(gpu, True)
+    except RuntimeError as e:
+        print(e)
 
 IMAGE_SIZE = 448
 INTERPOLATION = cv2.INTER_AREA
 REPOSITORY = "SmilingWolf/wd-v1-4-moat-tagger-v2" #moat or etc 
 
 # global params, models, general_tags, character_tags, rating_tags
-model = None
+model:tf.keras.models.Model = None
 general_tags:list|None = None
 character_tags:list|None = None
 
