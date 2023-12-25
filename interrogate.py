@@ -26,7 +26,7 @@ if gpus:
 IMAGE_SIZE = 448
 INTERPOLATION = cv2.INTER_AREA
 REPOSITORY = "SmilingWolf/wd-v1-4-moat-tagger-v2" #moat or etc 
-
+DTYPE = np.float16
 # global params, models, general_tags, character_tags, rating_tags
 model:tf.keras.models.Model = None
 general_tags:list|None = None
@@ -76,7 +76,7 @@ def preprocess_image(image:Image.Image) -> np.ndarray:
     
     # resize
     image = cv2.resize(image, (IMAGE_SIZE, IMAGE_SIZE), interpolation=INTERPOLATION)
-    image = image.astype(np.float32)
+    image = image.astype(DTYPE)
     return image
 
 def download_model(repo_dir: str = REPOSITORY, save_dir: str = "./", force_download: bool = False):
@@ -204,17 +204,23 @@ def predict_images_batch(images: Generator, model_path: str = "./", batch_size =
     return results
 
 def threaded_job(batch, paths, minibatch_size, model_path, action):
-    probs = model.predict(batch, batch_size=minibatch_size)
-    # move to cpu (tensorflow-gpu)
-    # clear session
-    keras.backend.clear_session()
-    tags_batch = []
-    for prob in probs:
-        tags = predict_tags(prob, model_path=model_path)
-        tags_batch.append(tags)
-    del probs
-    if action is not None:
-        action(paths, tags_batch)
+    try:
+        probs = model.predict(batch, batch_size=minibatch_size)
+        # move to cpu (tensorflow-gpu)
+        # clear session
+        keras.backend.clear_session()
+        tags_batch = []
+        for prob in probs:
+            tags = predict_tags(prob, model_path=model_path)
+            tags_batch.append(tags)
+        del probs
+        if action is not None:
+            action(paths, tags_batch)
+    except Exception as e:
+        print(e)
+        if isinstance(e, KeyboardInterrupt):
+            raise e
+        return None
 
 def handle_yield(image_path_list:List[str]):
     # yields image_path, image if image_path is valid and image loads
@@ -292,5 +298,5 @@ def move_matching_items(paths:List[str], tags:List[List[str]]):
             os.rename(path, target_path)
             print(f"Moved {path} to {target_path}")
 # adjust by yourself
-predict_local_path(r"D:\naidataset-1224", recursive=True, action=move_matching_items, max_items = 0, minibatch_size=32).values() # ban tags
+predict_local_path(r"D:\naidataset-1224", recursive=True, action=move_matching_items, max_items = 0,batch_size=256, minibatch_size=32).values() # ban tags
 
