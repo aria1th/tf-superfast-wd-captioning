@@ -17,7 +17,7 @@ from tqdm import tqdm
 
 IMAGE_SIZE = 448
 INTERPOLATION = cv2.INTER_AREA
-REPOSITORY = "SmilingWolf/wd-v1-4-convnext-tagger-v2" #moat or etc 
+REPOSITORY = "SmilingWolf/wd-v1-4-moat-tagger-v2" #moat or etc 
 
 # global params, models, general_tags, character_tags, rating_tags
 model = None
@@ -111,7 +111,7 @@ def load_model(model_path: str = "./models", force_download: bool = False):
         return None
     if not model_path:
         raise ValueError("model_path is None")
-    if not os.path.exists(model_path) or force_download:
+    if (not os.path.exists(model_path)) or force_download:
         download_model(REPOSITORY, model_path, force_download = force_download)
     # load model
     global model
@@ -190,13 +190,15 @@ def predict_images_batch(images: Generator, model_path: str = "./", batch_size =
             batch_processed.append(preprocess_image(image))
         batch = np.array(batch_processed)
         # With proper handling, the later part can be threaded (GPU side, load next batch while predicting)
-        threadexecutor.submit(threaded_job, batch, paths, minibatch_size, model_path, action)
+        #threadexecutor.submit(threaded_job, batch, paths, minibatch_size, model_path, action)
+        threaded_job(batch, paths, minibatch_size, model_path, action)
     return results
 
 def threaded_job(batch, paths, minibatch_size, model_path, action):
     probs = model.predict(batch, batch_size=minibatch_size)
     # move to cpu (tensorflow-gpu)
-    probs = probs.numpy()
+    # clear session
+    keras.backend.clear_session()
     tags_batch = []
     for prob in probs:
         tags = predict_tags(prob, model_path=model_path)
@@ -281,5 +283,5 @@ def move_matching_items(paths:List[str], tags:List[List[str]]):
             os.rename(path, target_path)
             print(f"Moved {path} to {target_path}")
 # adjust by yourself
-predict_local_path(r"D:\naidataset-1224", recursive=True, action=move_matching_items, max_items = 0).values() # ban tags
+predict_local_path(r"D:\naidataset-1224", recursive=True, action=move_matching_items, max_items = 0, minibatch_size=32).values() # ban tags
 
