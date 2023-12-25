@@ -195,10 +195,13 @@ def predict_images_batch(images: Generator, model_path: str = "./", batch_size =
 
 def threaded_job(batch, paths, minibatch_size, model_path, action):
     probs = model.predict(batch, batch_size=minibatch_size)
+    # move to cpu (tensorflow-gpu)
+    probs = probs.numpy()
     tags_batch = []
     for prob in probs:
         tags = predict_tags(prob, model_path=model_path)
         tags_batch.append(tags)
+    del probs
     if action is not None:
         action(paths, tags_batch)
 
