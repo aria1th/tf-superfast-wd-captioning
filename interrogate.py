@@ -181,8 +181,9 @@ def predict_images_batch(images: Generator, model_path: str = "./", batch_size =
     assert images is not None, "images is None"
     #images = [preprocess_image(image) for image in images]
     results = []
-    full, partial = divmod(len(images), batch_size)
+    full, partial = divmod(total, batch_size)
     total_batches = full + bool(partial)
+    _total_done = 0
     for i in tqdm(range(total_batches), desc="GPU Batch"):
         batch = []
         paths = []
@@ -197,8 +198,9 @@ def predict_images_batch(images: Generator, model_path: str = "./", batch_size =
                 break
         #batch = images[i*batch_size:(i+1)*batch_size]
         batch_processed = []
-        for image in tqdm(batch, desc="Preprocessing"):
+        for image in tqdm(batch, desc="Preprocessing", total=total, initial=_total_done):
             batch_processed.append(preprocess_image(image))
+            _total_done += 1
         batch = np.array(batch_processed)
         # With proper handling, the later part can be threaded (GPU side, load next batch while predicting)
         threadexecutor.submit(threaded_job, batch, paths, minibatch_size, model_path, action)
@@ -287,7 +289,7 @@ def move_matching_items(paths:List[str], tags:List[List[str]]):
     """
     #print(f"Given tags: {tags[:10]}")
     #lambda x: any("futa" in y for y in x) -> move to D:\interrogate\matches
-    for path, tag in tqdm(zip(paths, tags), desc="Moving matching items"):
+    for path, tag in zip(paths, tags):
         if any("futa" in y for y in tag):
             # move to D:\interrogate\matches
             print(f"Moving {path} to D:\\interrogate\\matches")
