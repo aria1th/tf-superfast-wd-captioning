@@ -7,13 +7,25 @@ from typing import Generator, List
 from PIL import Image
 import cv2
 import numpy as np
-from tensorflow.keras.models import load_model as load_model_hf
+import tensorflow as tf
 from tensorflow import keras
 from huggingface_hub import hf_hub_download
 import os
 import csv
-
+load_model_hf = tf.keras.models.load_model
 from tqdm import tqdm
+gpus = tf.config.list_physical_devices('GPU')
+if gpus:
+  # Create 2 virtual GPUs with 1GB memory each
+  try:
+    tf.config.set_logical_device_configuration(
+        gpus[0],
+        [tf.config.LogicalDeviceConfiguration(memory_limit=20480),]) # adjust by yourself
+    logical_gpus = tf.config.list_logical_devices('GPU')
+    print(len(gpus), "Physical GPU,", len(logical_gpus), "Logical GPUs")
+  except RuntimeError as e:
+    # Virtual devices must be set before GPUs have been initialized
+    print(e)
 
 IMAGE_SIZE = 448
 INTERPOLATION = cv2.INTER_AREA
@@ -116,6 +128,7 @@ def load_model(model_path: str = "./models", force_download: bool = False):
     # load model
     global model
     print("Loading model")
+    # precisions
     model = load_model_hf(model_path)
     return None
 
@@ -190,8 +203,8 @@ def predict_images_batch(images: Generator, model_path: str = "./", batch_size =
             batch_processed.append(preprocess_image(image))
         batch = np.array(batch_processed)
         # With proper handling, the later part can be threaded (GPU side, load next batch while predicting)
-        #threadexecutor.submit(threaded_job, batch, paths, minibatch_size, model_path, action)
-        threaded_job(batch, paths, minibatch_size, model_path, action)
+        threadexecutor.submit(threaded_job, batch, paths, minibatch_size, model_path, action)
+        #threaded_job(batch, paths, minibatch_size, model_path, action)
     return results
 
 def threaded_job(batch, paths, minibatch_size, model_path, action):
