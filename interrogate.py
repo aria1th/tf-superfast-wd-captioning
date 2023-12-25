@@ -181,10 +181,12 @@ def predict_images_batch(images: Generator, model_path: str = "./", batch_size =
     assert images is not None, "images is None"
     #images = [preprocess_image(image) for image in images]
     results = []
-    for i in tqdm(range(max(1,total// batch_size)), desc="GPU Batch"):
+    full, partial = divmod(len(images), batch_size)
+    total_batches = full + bool(partial)
+    for i in tqdm(range(total_batches), desc="GPU Batch"):
         batch = []
         paths = []
-        for j in tqdm(range(batch_size), desc=f"Loading batch {i}"):
+        for j in tqdm(range(batch_size), desc=f"Loading batch {i} over {total_batches}"):
             try:
                 path, image = next(images)
                 assert isinstance(image, Image.Image), f"Expected image to be Image.Image, got {type(image)} with value {image}"
